@@ -97,14 +97,12 @@ Function GITHUB_UpdateVersion {
     # Read file content
     $fileContent = Get-Content -Path $ConfigFile
 
-    if (Test-Path $ConfigFile) {
-        # Update the version line in the file content
-        Write-Host "Updating version in $ConfigFile to $newVersion"
-        $updatedContent = $fileContent -replace "version\s*=\s*.+", "version = $newVersion"
+    # Update the version line in the file content
+    Write-Host "Updating version in $ConfigFile to $newVersion"
+    $updatedContent = $fileContent -replace "version\s*=\s*.+", "version = $newVersion"
 
-        # Write the updated content back to the file
-        Set-Content -Path $ConfigFile -Value $updatedContent
-    }
+    # Write the updated content back to the file
+    Set-Content -Path $ConfigFile -Value $updatedContent
 
     return $newVersion
 }
