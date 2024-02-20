@@ -11,7 +11,7 @@ Function GITHUB_Upload {
     $gitVersion = "v${newVersion}"
     git tag $gitVersion
     git commit -m $CommitMessage
-    push push -u main --tags
+    git push -u main --tags
 }
 function PYPI_NextVersion {
     param (
@@ -50,12 +50,10 @@ function GITHUB_NextVersion {
         [string]$PyVersionFile = ".\${ProjectName}\__init__.py"
     )
 
-    # Read file content
-    $fileContent = Get-Content -Path $ConfigFile
 
     # Extract the version, increment it, and prepare the updated version string
     try {
-        $version = "$(git tag -l --merged main --format='VERSION=%(refname:short)' | Sort-Object -Descending | Select-Object -First 1)" -split "=v", 2 | ForEach-Object { $_.Trim() } | Select-Object -Last 1
+        $version = "$(git tag -l --format='VERSION=%(refname:short)' | Sort-Object -Descending | Select-Object -First 1)" -split "=v", 2 | ForEach-Object { $_.Trim() } | Select-Object -Last 1
         $versionParts = $version -split "\."
     
         $major = [int]$versionParts[0]
@@ -73,14 +71,26 @@ function GITHUB_NextVersion {
         }
     
         $newVersion = "$major.$minor.$patch"
+
+        Write-Host "Next version (git): $newVersion"
     } catch {
         git init
         git add .
         git branch -M main
         git remote add origin "https://github.com/nigel2392/$(ProjectName).git"
         $newVersion = PYPI_NextVersion -ConfigFile $ConfigFile
+        Write-Host "Next version (pypi): $newVersion"
     }
-    Write-Host "Next version: $newVersion"
+    return $newVersion
+}
+
+Function GITHUB_UpdateVersion {
+    param (
+        [string]$ConfigFile = ".\setup.cfg",
+        [string]$PyVersionFile = ".\${ProjectName}\__init__.py"
+    )
+
+    $newVersion = GITHUB_NextVersion -ConfigFile $ConfigFile
 
     # First update the init file so that in case something goes wrong 
     # the version doesn't persist in the config file
@@ -89,6 +99,9 @@ function GITHUB_NextVersion {
         $initContent = $initContent -replace "__version__\s*=\s*.+", "__version__ = '$newVersion'"
         Set-Content -Path $PyVersionFile -Value $initContent
     }
+
+    # Read file content
+    $fileContent = Get-Content -Path $ConfigFile
 
     if (Test-Path $ConfigFile) {
         # Update the version line in the file content
@@ -135,6 +148,7 @@ Function PYPI_Upload {
 
 
 $version = GITHUB_NextVersion      # Increment the package version  (setup.cfg)
+Write-Host "Next version: $version"
 GITHUB_Upload -Version $version    # Upload the package             (twine upload dist/<LATEST>)
 PYPI_Build                         # Build the package              (python setup.py sdist)
 PYPI_Check -Version $version       # Check the package              (twine check dist/<LATEST>)
