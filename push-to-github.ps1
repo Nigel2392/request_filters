@@ -71,7 +71,7 @@ function GITHUB_NextVersion {
         git init
         git add .
         git branch -M "main"
-        git remote add "origin" "https://github.com/nigel2392/$(ProjectName).git"
+        git remote add origin "https://github.com/nigel2392/$(ProjectName).git"
         $newVersion = PYPI_NextVersion -ConfigFile $ConfigFile
         Write-Host "Next version (pypi): $newVersion"
     }
