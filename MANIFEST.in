@@ -1,0 +1,7 @@
+include LICENSE
+include README.md
+recursive-include request_filters/static *
+recursive-include request_filters/templates *
+recursive-include request_filters/locale *
+recursive-include request_filters/migrations *
+recursive-include request_filters/templatetags *

@@ -1,0 +1,113 @@
+$ProjectName = "request_filters"
+
+Function GITHUB_Upload {
+    param (
+        [string]$Version,
+        [string]$CommitMessage = "Update to package"
+    )
+
+    git add .
+    $gitVersion = "v${newVersion}"
+    git tag $gitVersion
+    git commit -m $CommitMessage
+    push push -u main --tags
+}
+
+function GITHUB_NextVersion {
+    param (
+        [string]$ConfigFile = ".\setup.cfg",
+        [string]$PyVersionFile = ".\${ProjectName}\__init__.py"
+    )
+
+    # Read file content
+    $fileContent = Get-Content -Path $ConfigFile
+
+    # Extract the version, increment it, and prepare the updated version string
+    try {
+        $version = "$(git tag -l --merged main --format='VERSION=%(refname:short)' | Sort-Object -Descending | Select-Object -First 1)" -split "=v", 2 | ForEach-Object { $_.Trim() } | Select-Object -Last 1
+        $versionParts = $version -split "\."
+    
+        $major = [int]$versionParts[0]
+        $minor = [int]$versionParts[1]
+        $patch = [int]$versionParts[2] + 1
+    
+        if ($patch -gt 9) {
+            $patch = 0
+            $minor += 1
+        }
+    
+        if ($minor -gt 9) {
+            $minor = 0
+            $major += 1
+        }
+    
+        $newVersion = "$major.$minor.$patch"
+    } catch {
+        git init
+        git add .
+        git branch -M main
+        git remote add origin "https://github.com/nigel2392/$(ProjectName).git"
+    }
+    Write-Host "Next version: $newVersion"
+
+    # First update the init file so that in case something goes wrong 
+    # the version doesn't persist in the config file
+    if (Test-Path $PyVersionFile) {
+        $initContent = Get-Content -Path $PyVersionFile
+        $initContent = $initContent -replace "__version__\s*=\s*.+", "__version__ = '$newVersion'"
+        Set-Content -Path $PyVersionFile -Value $initContent
+    }
+
+    if (Test-Path $ConfigFile) {
+        # Update the version line in the file content
+        $updatedContent = $fileContent -replace "version\s*=\s*.+", "version = $newVersion"
+
+        # Write the updated content back to the file
+        Set-Content -Path $ConfigFile -Value $updatedContent
+    }
+
+    return $newVersion
+}
+
+
+Function _PYPI_DistName {
+    param (
+        [string]$Version,
+        [string]$Append = ".tar.gz"
+    )
+
+    return "$ProjectName-$Version$Append"
+}
+
+Function PYPI_Build {
+    py .\setup.py sdist
+}
+
+Function PYPI_Check {
+    param (
+        [string]$Version
+    )
+
+    $distFile = _PYPI_DistName -Version $Version
+    py -m twine check "./dist/${distFile}"
+}
+
+Function PYPI_Upload {
+    param (
+        [string]$Version
+    )
+
+    $distFile = _PYPI_DistName -Version $Version
+    py -m twine upload "./dist/${distFile}"
+}
+
+
+$version = GITHUB_NextVersion      # Increment the package version  (setup.cfg)
+GITHUB_Build                       # Build the package              (python setup.py sdist)
+GITHUB_Check -Version $version     # Check the package              (twine check dist/<LATEST>)
+GITHUB_Upload -Version $version    # Upload the package             (twine upload dist/<LATEST>)
+PYPI_Build                         # Build the package              (python setup.py sdist)
+PYPI_Check -Version $version       # Check the package              (twine check dist/<LATEST>)
+PYPI_Upload -Version $version      # Upload the package             (twine upload dist/<LATEST>)
+
+
