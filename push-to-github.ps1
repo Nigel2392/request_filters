@@ -70,7 +70,7 @@ function GITHUB_NextVersion {
     } catch {
         git init
         git add .
-        git branch -M main
+        git branch -M "main"
         git remote add origin "https://github.com/nigel2392/$(ProjectName).git"
         $newVersion = PYPI_NextVersion -ConfigFile $ConfigFile
         Write-Host "Next version (pypi): $newVersion"
@@ -147,8 +147,8 @@ $version = GITHUB_UpdateVersion               # Update the package version     (
 Write-Host "Next version: $version"
 GITHUB_Upload -Version $version    # Upload the package             (twine upload dist/<LATEST>)
 PYPI_Build                         # Build the package              (python setup.py sdist)
-# PYPI_Check -Version $version       # Check the package              (twine check dist/<LATEST>)
-# PYPI_Upload -Version $version      # Upload the package             (twine upload dist/<LATEST>)
+PYPI_Check -Version $version       # Check the package              (twine check dist/<LATEST>)
+PYPI_Upload -Version $version      # Upload the package             (twine upload dist/<LATEST>)
 
 
 
