@@ -13,16 +13,12 @@ Function GITHUB_Upload {
     git commit -m $CommitMessage
     git push -u main --tags
 }
-function PYPI_NextVersion {
-    param (
-        [string]$ConfigFile = ".\setup.cfg"
-    )
-    # Read file content
-    $fileContent = Get-Content -Path $ConfigFile
 
-    # Extract the version, increment it, and prepare the updated version string
-    $versionLine = $fileContent | Where-Object { $_ -match "version\s*=" }
-    $version = $versionLine -split "=", 2 | ForEach-Object { $_.Trim() } | Select-Object -Last 1
+Function _NextVersionString {
+    param (
+        [string]$Version
+    )
+
     $versionParts = $version -split "\."
 
     $major = [int]$versionParts[0]
@@ -44,6 +40,20 @@ function PYPI_NextVersion {
     return $newVersion
 }
 
+function PYPI_NextVersion {
+    param (
+        [string]$ConfigFile = ".\setup.cfg"
+    )
+    # Read file content
+    $fileContent = Get-Content -Path $ConfigFile
+
+    # Extract the version, increment it, and prepare the updated version string
+    $versionLine = $fileContent | Where-Object { $_ -match "version\s*=" }
+    $version = $versionLine -split "=", 2 | ForEach-Object { $_.Trim() } | Select-Object -Last 1
+    $newVersion = _NextVersionString -Version $version
+    return $newVersion
+}
+
 function GITHUB_NextVersion {
     param (
         [string]$ConfigFile = ".\setup.cfg",
@@ -54,23 +64,7 @@ function GITHUB_NextVersion {
     # Extract the version, increment it, and prepare the updated version string
     try {
         $version = "$(git tag -l --format='VERSION=%(refname:short)' | Sort-Object -Descending | Select-Object -First 1)" -split "=v", 2 | ForEach-Object { $_.Trim() } | Select-Object -Last 1
-        $versionParts = $version -split "\."
-    
-        $major = [int]$versionParts[0]
-        $minor = [int]$versionParts[1]
-        $patch = [int]$versionParts[2] + 1
-    
-        if ($patch -gt 9) {
-            $patch = 0
-            $minor += 1
-        }
-    
-        if ($minor -gt 9) {
-            $minor = 0
-            $major += 1
-        }
-    
-        $newVersion = "$major.$minor.$patch"
+        $newVersion = _NextVersionString -Version $version
 
         Write-Host "Next version (git): $newVersion"
     } catch {
@@ -114,7 +108,6 @@ Function GITHUB_UpdateVersion {
     return $newVersion
 }
 
-
 Function _PYPI_DistName {
     param (
         [string]$Version,
@@ -125,6 +118,7 @@ Function _PYPI_DistName {
 }
 
 Function PYPI_Build {
+    Write-Host "Building package"
     py .\setup.py sdist
 }
 
@@ -132,6 +126,7 @@ Function PYPI_Check {
     param (
         [string]$Version
     )
+    Write-Host "Testing package"
 
     $distFile = _PYPI_DistName -Version $Version
     py -m twine check "./dist/${distFile}"
@@ -141,18 +136,20 @@ Function PYPI_Upload {
     param (
         [string]$Version
     )
+    Write-Host "Uploading package"
 
     $distFile = _PYPI_DistName -Version $Version
     py -m twine upload "./dist/${distFile}"
 }
 
 
+
 $version = GITHUB_NextVersion      # Increment the package version  (setup.cfg)
 Write-Host "Next version: $version"
 GITHUB_Upload -Version $version    # Upload the package             (twine upload dist/<LATEST>)
 PYPI_Build                         # Build the package              (python setup.py sdist)
-PYPI_Check -Version $version       # Check the package              (twine check dist/<LATEST>)
-PYPI_Upload -Version $version      # Upload the package             (twine upload dist/<LATEST>)
+# PYPI_Check -Version $version       # Check the package              (twine check dist/<LATEST>)
+# PYPI_Upload -Version $version      # Upload the package             (twine upload dist/<LATEST>)
 
 
 
