@@ -1,5 +1,6 @@
 $ProjectName = "request_filters"
 
+
 Function GITHUB_Upload {
     param (
         [string]$Version,
@@ -11,6 +12,36 @@ Function GITHUB_Upload {
     git tag $gitVersion
     git commit -m $CommitMessage
     push push -u main --tags
+}
+function PYPI_NextVersion {
+    param (
+        [string]$ConfigFile = ".\setup.cfg"
+    )
+    # Read file content
+    $fileContent = Get-Content -Path $ConfigFile
+
+    # Extract the version, increment it, and prepare the updated version string
+    $versionLine = $fileContent | Where-Object { $_ -match "version\s*=" }
+    $version = $versionLine -split "=", 2 | ForEach-Object { $_.Trim() } | Select-Object -Last 1
+    $versionParts = $version -split "\."
+
+    $major = [int]$versionParts[0]
+    $minor = [int]$versionParts[1]
+    $patch = [int]$versionParts[2] + 1
+
+    if ($patch -gt 9) {
+        $patch = 0
+        $minor += 1
+    }
+
+    if ($minor -gt 9) {
+        $minor = 0
+        $major += 1
+    }
+
+    $newVersion = "$major.$minor.$patch"
+
+    return $newVersion
 }
 
 function GITHUB_NextVersion {
@@ -47,6 +78,7 @@ function GITHUB_NextVersion {
         git add .
         git branch -M main
         git remote add origin "https://github.com/nigel2392/$(ProjectName).git"
+        $newVersion = PYPI_NextVersion -ConfigFile $ConfigFile
     }
     Write-Host "Next version: $newVersion"
 
@@ -103,11 +135,11 @@ Function PYPI_Upload {
 
 
 $version = GITHUB_NextVersion      # Increment the package version  (setup.cfg)
-GITHUB_Build                       # Build the package              (python setup.py sdist)
-GITHUB_Check -Version $version     # Check the package              (twine check dist/<LATEST>)
 GITHUB_Upload -Version $version    # Upload the package             (twine upload dist/<LATEST>)
 PYPI_Build                         # Build the package              (python setup.py sdist)
 PYPI_Check -Version $version       # Check the package              (twine check dist/<LATEST>)
 PYPI_Upload -Version $version      # Upload the package             (twine upload dist/<LATEST>)
+
+
 
 
