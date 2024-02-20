@@ -11,7 +11,7 @@ Function GITHUB_Upload {
     $gitVersion = "v${Version}"
     git tag $gitVersion
     git commit -m $CommitMessage
-    git push -u main --tags
+    git push -u origin main --tags
 }
 
 Function _NextVersionString {
@@ -71,7 +71,7 @@ function GITHUB_NextVersion {
         git init
         git add .
         git branch -M "main"
-        git remote set-url origin "git@github.com:nigel2392/$(ProjectName).git"
+        git remote set-url origin "git@github.com:Nigel2392/$(ProjectName).git"
         $newVersion = PYPI_NextVersion -ConfigFile $ConfigFile
         Write-Host "Next version (pypi): $newVersion"
     }
