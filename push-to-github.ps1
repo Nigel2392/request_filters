@@ -100,7 +100,7 @@ Function GITHUB_UpdateVersion {
     if (Test-Path $ConfigFile) {
         # Update the version line in the file content
         $updatedContent = $fileContent -replace "version\s*=\s*.+", "version = $newVersion"
-
+        
         # Write the updated content back to the file
         Set-Content -Path $ConfigFile -Value $updatedContent
     }
