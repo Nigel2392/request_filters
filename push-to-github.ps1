@@ -143,7 +143,7 @@ Function PYPI_Upload {
 
 
 
-$version = GITHUB_NextVersion      # Increment the package version  (setup.cfg)
+$version = GITHUB_UpdateVersion               # Update the package version     (setup.cfg)
 Write-Host "Next version: $version"
 GITHUB_Upload -Version $version    # Upload the package             (twine upload dist/<LATEST>)
 PYPI_Build                         # Build the package              (python setup.py sdist)
