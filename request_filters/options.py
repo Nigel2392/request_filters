@@ -54,6 +54,7 @@ class RequestFilterOptions(object):
     CLEAR_CACHE_ON_SAVE_FILTERS:  bool                  = True  # Clear cache when filters are saved
     ADD_FILTER_HEADERS:           bool                  = True  # Add headers to the response which displays minimal information about the filters.
     LOG_HAPPY_PATH:               bool                  = False # Log requests that are allowed by the filters
+    LOG_ALLOWED_REQUESTS:         bool                  = True  # Log requests that are allowed by the filters
     DEFAULT_CHECK_VALUE:          Union[bool, callable] = True  # Allow checks to pass by default
     DEFAULT_ACTION_VALUE:         callable              = lambda self, filter, settings, request, get_response: HttpResponseForbidden(
         _("You are not allowed to access this resource")

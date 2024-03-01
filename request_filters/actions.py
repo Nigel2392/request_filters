@@ -55,7 +55,7 @@ def FILTER_ALLOWS_REQUEST(filter: "Filter", settings: "FilterSettings", request:
     log(f"[Filter / {filter.action}] (LOG_TO_DATABASE: {RequestFilters.LOG_HAPPY_PATH}) Allowing request {ipaddr} with {filter}", logging.INFO)
     response = get_response(request)
 
-    if not RequestFilters.LOG_HAPPY_PATH:
+    if not RequestFilters.LOG_ALLOWED_REQUESTS:
         response = skip_logging(response)
 
     return response
