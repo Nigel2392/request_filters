@@ -3,7 +3,6 @@ from typing import Union, TYPE_CHECKING
 from django.conf import settings
 from django.utils.translation import gettext_lazy as _
 from django.http import HttpRequest, HttpResponseForbidden
-from django.core.exceptions import PermissionDenied
 from django.core.cache import caches
 from django.utils import timezone
 
@@ -58,9 +57,9 @@ class RequestFilterOptions(object):
     DEFAULT_ACTION_VALUE:         callable              = lambda self, filter, settings, request, get_response: HttpResponseForbidden(
         _("You are not allowed to access this resource")
     )
+    REGISTER_TO_MENU:             str                   = "register_settings_menu_item" # The name of the hook to register the menu item to.
 
     def __init__(self):
-        self.settings = getattr(settings, _VAR, {})
         for i, ip in enumerate(self.EXCLUDED_IPS):
             if "/" in ip:
                 addr = ipaddress.ip_network(ip, strict=False)
@@ -71,10 +70,11 @@ class RequestFilterOptions(object):
 
 
     def __getattribute__(self, name):
-        settings = object.__getattribute__(self, "settings")
-        if name in settings:
-            return settings[name]
-        return object.__getattribute__(self, name)
+        return getattr(
+            settings,
+            f"{_VAR}_{name}",
+            object.__getattribute__(self, name),
+        )
 
     
     def default_check_value(self, filter: "Filter", settings: "FilterSettings", request: HttpRequest):

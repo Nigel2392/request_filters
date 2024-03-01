@@ -1,0 +1,10 @@
+:root {
+    --grid-color: rgba(0, 0, 0, 0.1);
+}
+.w-theme-dark {
+    --grid-color: rgba(255, 255, 255, 0.1);
+}
+.chart {
+    margin-top: 2rem;
+    min-height: 40vh;
+}

@@ -51,7 +51,7 @@ List of excluded apps, all requests to these apps will be allowed (If resolver_m
 Exclusions should preferably happen via IP ranges or absolute IPs.
 
 ```
-    EXCLUDED_APPS:                list[str] = [
+    REQUEST_FILTERS_EXCLUDED_APPS:                list[str] = [
         "admin",
     ]
 ```
@@ -64,7 +64,7 @@ Paths should be in the format of a glob pattern.
 Exclusions should preferably happen via IP ranges or absolute IPs.
 
 ```
-    EXCLUDED_PATHS:               list[str] = [
+    REQUEST_FILTERS_EXCLUDED_PATHS:               list[str] = [
         "/admin/*",
         f"{getattr(settings, 'STATIC_URL', '/static/')}*",
         f"{getattr(settings, 'MEDIA_URL', '/media/')}*",
@@ -77,7 +77,7 @@ Excluded IP addresses, all requests from these IPs will be allowed.
 
 ```
     # This is the safest way to exclude requests from being filtered.
-    EXCLUDED_IPS:                 list[str] = [
+    REQUEST_FILTERS_EXCLUDED_IPS:                 list[str] = [
         "127.0.0.0/8", "::1/128",
     ]
 ```
@@ -88,23 +88,23 @@ Caching settings and their defaults.
 
 ```
 # Default cache backend to use for storing settings and filters
-CACHE_BACKEND:                str                   = "default"
+REQUEST_FILTERS_CACHE_BACKEND:                str                   = "default"
 
 # Namespaces for cache keys.
-SETTINGS_CACHE_KEY:           str                   = "request_filters_settings"
-FILTERS_CACHE_KEY:            str                   = "request_filters_filters"
+REQUEST_FILTERS_SETTINGS_CACHE_KEY:           str                   = "request_filters_settings"
+REQUEST_FILTERS_FILTERS_CACHE_KEY:            str                   = "request_filters_filters"
 
 # Timeout the cache for the filter settings for 5 minutes by default
-SETTINGS_CACHE_TIMEOUT:       timezone.timedelta    = timezone.timedelta(minutes=5)
+REQUEST_FILTERS_SETTINGS_CACHE_TIMEOUT:       timezone.timedelta    = timezone.timedelta(minutes=5)
 
 # Timeout the cache for the filters for 1 hour by default
-FILTERS_CACHE_TIMEOUT:        timezone.timedelta    = timezone.timedelta(hours=1)
+REQUEST_FILTERS_FILTERS_CACHE_TIMEOUT:        timezone.timedelta    = timezone.timedelta(hours=1)
 
 # Clear cache when settings are saved
-CLEAR_CACHE_ON_SAVE_SETTINGS: bool                  = True
+REQUEST_FILTERS_CLEAR_CACHE_ON_SAVE_SETTINGS: bool                  = True
 
 # Clear cache when filters are saved
-CLEAR_CACHE_ON_SAVE_FILTERS:  bool                  = True
+REQUEST_FILTERS_CLEAR_CACHE_ON_SAVE_FILTERS:  bool                  = True
 ```
 
 #### Exception Message
@@ -112,7 +112,7 @@ CLEAR_CACHE_ON_SAVE_FILTERS:  bool                  = True
 **Message shown when a filter raises an exception, or blocks the request.**
 
 ```
-BLOCK_MESSAGE:                str                   = _("You are not allowed to access this resource")
+REQUEST_FILTERS_BLOCK_MESSAGE:                str                   = _("You are not allowed to access this resource")
 ```
 
 #### Filter Headers
@@ -120,7 +120,7 @@ BLOCK_MESSAGE:                str                   = _("You are not allowed to 
 Add headers to the response which displays minimal information about the filters.
 
 ```
-ADD_FILTER_HEADERS:           bool                  = True  # Add headers to the response which displays minimal information about the filters.
+REQUEST_FILTERS_ADD_FILTER_HEADERS:           bool                  = True  # Add headers to the response which displays minimal information about the filters.
 ```
 
 #### Create a log entry for requests which have passed all filters.
@@ -128,14 +128,20 @@ ADD_FILTER_HEADERS:           bool                  = True  # Add headers to the
 **Not recommended for production.**
 
 ```
-LOG_HAPPY_PATH:               bool                  = False # Log requests that are allowed by the filters
+REQUEST_FILTERS_LOG_HAPPY_PATH:               bool                  = False # Log requests that are allowed by the filters
 ```
 
 #### Default values for the check and action functions.
 
 ```
-DEFAULT_CHECK_VALUE:          Union[bool, callable] = True  # Allow checks to pass by default
-DEFAULT_ACTION_VALUE:         callable              = lambda self, filter, settings, request, get_response: HttpResponseForbidden(
+REQUEST_FILTERS_DEFAULT_CHECK_VALUE:          Union[bool, callable] = True  # Allow checks to pass by default
+REQUEST_FILTERS_DEFAULT_ACTION_VALUE:         callable              = lambda self, filter, settings, request, get_response: HttpResponseForbidden(
         _("You are not allowed to access this resource")
 )
+```
+
+#### Registering menu items
+
+```
+REQUEST_FILTERS_REGISTER_TO_MENU:             str                   = "register_settings_menu_item" # Register to a menu hook.
 ```

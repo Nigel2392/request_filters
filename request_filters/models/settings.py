@@ -55,7 +55,7 @@ FilterModel: "Filter" = apps.get_model(
 
 @register_setting(
     icon="key",
-    name="request_filters_settings",
+    name="request_filters_settings_disabled",
     order=1450,
 )
 class FilterSettings(ClusterableModel, BaseGenericSetting):
