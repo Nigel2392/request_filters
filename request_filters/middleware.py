@@ -100,7 +100,9 @@ class RequestFilterMiddleware:
                 # Log the request/response.
                 else:
                     # Filters may return none to allow for the next filter to be executed.
-                    if response is not None:
+                    if response is None:
+                        FilteredRequest.log_request(request, filter=filter, filter_index=idx, fail_silently=True)
+                    else:
                         FilteredRequest.log_request(request, filter=filter, response=response, filter_index=idx, fail_silently=True)
                         return response, False
                 
