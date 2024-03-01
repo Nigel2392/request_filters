@@ -20,6 +20,9 @@ Only for use in wagtail projects - might support django-only in the future.
 * Regex (re)
 * In (IP based on cidr, splits most `filter_value`'s' by comma and checks if the request's value is in the list)
 
+## Admin Views
+
+Has a a view to easy analyse the behaviour of filters overall in a chart.
 
 # Quick start
 -----------
