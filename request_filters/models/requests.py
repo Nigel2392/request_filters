@@ -36,7 +36,12 @@ class FilteredRequest(models.Model):
     """
         A FilteredRequest is a request that has failed a filter check.
     """
-
+    filter_index = models.PositiveIntegerField(
+        verbose_name=_("Filter Index"),
+        help_text=_("The index of the filter that was triggered."),
+        blank=True,
+        null=True,
+    )
     _filter = models.JSONField(
         verbose_name=_("Filter"),
         help_text=_("The filter that was triggered."),
@@ -121,7 +126,7 @@ class FilteredRequest(models.Model):
     class Meta:
         verbose_name = _("Filtered Request")
         verbose_name_plural = _("Filtered Requests")
-        ordering = ["-created_at"]
+        ordering = ["-created_at__date", "-created_at__time__hour", "-created_at__time__minute", "-created_at__time__second", "filter_index"]
 
 
     def __str__(self):
@@ -201,7 +206,7 @@ class FilteredRequest(models.Model):
         return not logging_skipped(request_or_response)
 
     @classmethod
-    def log_request(cls, request: HttpRequest, filter: "Filter", response: HttpResponse = None, fail_silently: bool = False, commit: bool = True):
+    def log_request(cls, request: HttpRequest, filter: "Filter", response: HttpResponse = None, fail_silently: bool = False, filter_index = None, commit: bool = True):
         """
             Log a request that has been filtered
         """
@@ -267,6 +272,7 @@ class FilteredRequest(models.Model):
             _create_kwargs["request_language"] = get_language_from_request(request)
 
         self = cls(
+            filter_index        = filter_index,
             gis_data            = country,
             request_ip          = ip,
             request_path        = request.path,

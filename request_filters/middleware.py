@@ -85,7 +85,7 @@ class RequestFilterMiddleware:
         # Filter.passes_test checks if the request fits the 'shape' of the filter.
         # For example, if the type is IP, it checks if the request IP is in the filter.filter_value's CIDR range.
         # It returns true if the value is a match and thus should be filtered.
-        for filter in filters:
+        for idx, filter in enumerate(filters):
             if filter.passes_test(settings, request):
                 
                 # Log and respond if filter matches.
@@ -94,18 +94,16 @@ class RequestFilterMiddleware:
 
                 # Log then re-raise PermissionDenied
                 except PermissionDenied as e:
-                    FilteredRequest.log_request(request, filter=filter, fail_silently=True)
+                    FilteredRequest.log_request(request, filter=filter, filter_index=idx, fail_silently=True)
                     raise e
                 
                 # Log the request/response.
                 else:
                     # Filters may return none to allow for the next filter to be executed.
                     if response is not None:
-                        FilteredRequest.log_request(request, filter=filter, response=response, fail_silently=True)
+                        FilteredRequest.log_request(request, filter=filter, response=response, filter_index=idx, fail_silently=True)
                         return response, False
                 
-                skip_logging(request, True)
-
         # No filters matched
         response = self.get_response(request)
 
