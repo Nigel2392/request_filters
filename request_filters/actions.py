@@ -123,7 +123,6 @@ def _FILTER_LOGS_REQUEST(log_level: int, allow_next_filter: bool = False):
         # Get the response and skip the logging in middleware 
         # to implement our custom logging here.
         response = get_response(request)
-        response = skip_logging(response)
         _content_length = request.META.get('CONTENT_LENGTH', 0) or 0
         try:
             if int(_content_length) > 0:

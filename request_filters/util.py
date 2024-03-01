@@ -48,12 +48,12 @@ def ip_in_cidr(ip, cidr):
 def get_country(ip) -> dict[Union[Literal["country_code"], Literal["country_name"]], str]:
     return GEO_IP.country(ip)
 
-def skip_logging(request_or_response):
+def skip_logging(request_or_response, skip: bool = True):
     """
         Mark a response or request.
         It will not be logged to the database.
     """
-    setattr(request_or_response, "filters_skip_logging", True)
+    setattr(request_or_response, "filters_skip_logging", skip)
     return request_or_response
 
 def logging_skipped(request_or_response):

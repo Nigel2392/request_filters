@@ -8,7 +8,7 @@ if TYPE_CHECKING:
     from .models import Filter, FilterSettings
 
 from . import log, VERSION
-from .util import get_ip_address
+from .util import get_ip_address, skip_logging
 from .models import FilteredRequest
 from .signals import (
     request_started,
@@ -103,11 +103,14 @@ class RequestFilterMiddleware:
                     if response is not None:
                         FilteredRequest.log_request(request, filter=filter, response=response, fail_silently=True)
                         return response, False
+                
+                skip_logging(request, True)
 
         # No filters matched
         response = self.get_response(request)
 
         if RequestFilters.LOG_HAPPY_PATH:
+            skip_logging(request, False)
             FilteredRequest.log_request(request, filter=None, response=response, fail_silently=True)
 
         return response, True
