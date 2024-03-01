@@ -5,6 +5,7 @@ from django.utils.translation import gettext_lazy as _
 from django.http import HttpRequest, HttpResponseForbidden
 from django.core.cache import caches
 from django.utils import timezone
+import logging
 
 if TYPE_CHECKING:
     from .models import (
@@ -58,6 +59,7 @@ class RequestFilterOptions(object):
         _("You are not allowed to access this resource")
     )
     REGISTER_TO_MENU:             str                   = "register_settings_menu_item" # The name of the hook to register the menu item to.
+    FILTER_LOG_LEVEL:             int                   = logging.INFO # The log level to use for filter logs.
 
     def __init__(self):
         for i, ip in enumerate(self.EXCLUDED_IPS):
