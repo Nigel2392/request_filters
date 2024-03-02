@@ -1,5 +1,6 @@
 # request_filters
-===============
+
+![Chart Admin](https://github.com/Nigel2392/request_filters/blob/main/chart-admin.png?raw=true)
 
 A sort of software firewall for your django application which provides advances capabilities for blocking or logging requests at runtime.
 Only for use in wagtail projects - might support django-only in the future.
@@ -15,6 +16,7 @@ Only for use in wagtail projects - might support django-only in the future.
 * METHOD
 
 ## Matching based on:
+
 * Absolute (== in most cases. Differs for: IP (Checks subnet if cidr provided), COUNTRY (Checks country code or name as returned by GeoIP2))
 * Glob (fnmatch)
 * Regex (re)
@@ -25,7 +27,8 @@ Only for use in wagtail projects - might support django-only in the future.
 Has a a view to easy analyse the behaviour of filters overall in a chart.
 
 # Quick start
------------
+
+---
 
 1. Add 'request_filters' to your INSTALLED_APPS setting like this:
 
