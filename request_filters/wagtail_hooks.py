@@ -170,17 +170,33 @@ class FilteredRequestFilterSet(FilterSet):
         label=_('Filter Type'),
     )
 
+    chart_type = filters.ChoiceFilter(
+        choices=[
+            ('line', _('Line')),
+            ('bar', _('Bar')),
+        ],
+        label=_('Chart Type'),
+        empty_label=None,
+        initial='line',
+        method='filter_chart_type',
+    )
+
     filters = RequestFilterModelMultipleChoiceFilter(
         queryset=Filter.objects.all(),
         method='filter_filters',
         label=_('Filters'),
     )
 
+    def __init__(self, *args, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self.form.fields['chart_type'].initial = 'line'
+
     class Meta:
         model = FilteredRequest
         fields = [
             'method',
             'filter',
+            'chart_type',
             'filters',
         ]
 
@@ -193,7 +209,10 @@ class FilteredRequestFilterSet(FilterSet):
         if not value:
             return queryset
         return queryset.filter(_filter__filter_type=value)
-    
+        
+    def filter_chart_type(self, queryset, name, value):
+        return queryset
+
     def filter_filters(self, queryset, name, value):
         if not value:
             return queryset
@@ -227,15 +246,23 @@ class FilteredRequestChartView(WagtailAdminTemplateMixin, TemplateView):
     def header_buttons(self):
         filters = ["day", "week", "month", "year"]
         buttons = []
+
+        query = self.request.GET.copy()
+        query.pop('query_by', None)
+
         for i, filter in enumerate(filters):
             # data = self.request.GET.get('filter', None)
             # if filter == data:
             #     continue
 
+            url =  f"{reverse('filter_chart_view')}?query_by={filter}"
+            if query:
+                url += f"&{query.urlencode()}"
+
             buttons.append(
                 Button(
                     _(filter.capitalize()),
-                    url=reverse('filter_chart_view') + f"?query_by={filter}",
+                    url=url,
                     priority=i,
                 )
             )
@@ -330,6 +357,7 @@ class FilteredRequestChartView(WagtailAdminTemplateMixin, TemplateView):
                 chart = chart,
                 query_by = filter,
                 filter = dj_filter,
+                chart_type = dj_filter.form.cleaned_data.get('chart_type', 'line'),
             ),
         )
 

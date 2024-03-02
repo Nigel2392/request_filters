@@ -15,7 +15,7 @@
 
 {% block main_content %}
     <div class="chart">
-        <canvas id="filter-chart"></canvas>
+        <canvas id="filter-chart" data-chart-type="{{ chart_type }}"></canvas>
     </div>
     <form method="get">
 
@@ -31,7 +31,7 @@
             </div>
 
             <div class="request-filters-col">
-                
+                {% include "./chart_view_form_field.html" with field=filter.form.chart_type %}
             </div>
 
         </div>

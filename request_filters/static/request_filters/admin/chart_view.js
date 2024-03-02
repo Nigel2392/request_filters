@@ -54,8 +54,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const chartData = JSON.parse(chartDataScript.textContent);
     const labels = chartData.labels;
     const datasets = chartData.datasets;
-    const ctx = document.getElementById('filter-chart').getContext('2d');
-
     const docStyle = getComputedStyle(document.documentElement);
     const gridColor = docStyle.getPropertyValue('--grid-color');
     const chartColor = docStyle.getPropertyValue('--w-color-secondary');
@@ -75,8 +73,10 @@ document.addEventListener('DOMContentLoaded', () => {
         dataset.backgroundColor = colors[index % colors.length];
     });
 
+    const canvas = document.getElementById('filter-chart');
+    const ctx = canvas.getContext('2d');
     const filterChart = new Chart(ctx, {
-        type: 'line',
+        type: canvas.dataset.chartType || 'line',
         data: {
             labels: labels,
             datasets: datasets
