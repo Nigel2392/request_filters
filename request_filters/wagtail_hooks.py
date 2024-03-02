@@ -1,3 +1,4 @@
+import datetime
 import json
 from typing import Any
 from django.db import models
@@ -5,13 +6,13 @@ from django.utils import timezone
 from django.urls import path, reverse
 from django.views.generic import TemplateView
 from django.core.serializers.json import DjangoJSONEncoder
-from django.utils.translation import gettext_lazy as _
+from django.utils.translation import gettext_lazy as _, gettext_lazy
 from django.http import HttpRequest, HttpResponse
 
 from wagtail.snippets.models import register_snippet
 from wagtail.snippets.views.snippets import SnippetViewSet
 from wagtail.admin.views.generic import WagtailAdminTemplateMixin
-from wagtail.admin.widgets.button import HeaderButton
+from wagtail.admin.widgets.button import Button, ButtonWithDropdown, HeaderButton
 from wagtail import hooks
 
 from .models import FilteredRequest, FilterSettings, FilterActionChoices
@@ -56,13 +57,62 @@ class URL(object):
     def __getitem__(self, key):
         return getattr(self, key)
 
+def _positive(number: int, add: int = 24, zero: int = 0) -> int:
+    return number if number >= zero else add + number
+
 class FilteredRequestChartView(WagtailAdminTemplateMixin, TemplateView):
     template_name = 'request_filters/chart_view.html'
     page_title = _('Filters Chart')
     page_subtitle = _('Analyse your filters')
     header_icon = 'clipboard-list'
     _show_breadcrumbs = True
-    days = 7
+    days = {
+        "day": 1,
+        "week": 7,
+        "month": 30,
+        "year": 365,
+    }
+
+    @property
+    def header_buttons(self):
+        filters = ["day", "week", "month", "year"]
+        buttons = []
+        for i, filter in enumerate(filters):
+            # data = self.request.GET.get('filter', None)
+            # if filter == data:
+            #     continue
+
+            buttons.append(
+                Button(
+                    _(filter.capitalize()),
+                    url=reverse('filter_chart_view') + f"?filter={filter}",
+                    priority=i,
+                )
+            )
+
+        ret_buttons = [
+            ButtonWithDropdown(
+                _('Filter'),
+                # icon_name='filter',
+                buttons=buttons,
+                priority=0,
+            )
+        ]
+
+        if self.request.user.has_perms([
+                    f"{FilteredRequest._meta.app_label}.change_{FilteredRequest._meta.model_name}"
+                ]):
+            ret_buttons.append(
+                HeaderButton(
+                    _('Logs'),
+                    url=reverse('request_filters_log:list'),
+                    icon_name='clipboard-list',
+                    priority=10,
+                )
+            )
+
+        return ret_buttons
+
 
     def get_breadcrumbs_items(self):
 
@@ -82,7 +132,7 @@ class FilteredRequestChartView(WagtailAdminTemplateMixin, TemplateView):
     def get(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
 
         annotations = {}
-        for action, _ in FilterActionChoices.choices:
+        for action, __ in FilterActionChoices.choices:
             annotations[f'count_{action.lower()}'] = models.Count(
                 '_filter',
                 filter=models.Q(
@@ -90,28 +140,91 @@ class FilteredRequestChartView(WagtailAdminTemplateMixin, TemplateView):
                 ),
             )
 
+        filter = request.GET.get('filter', 'day')
+        try:
+            self_day = self.days[filter]
+        except KeyError:
+            self_day = 1
 
-        requests = FilteredRequest.objects.all()\
-            .filter(created_at__gte=timezone.now() - timezone.timedelta(days=self.days))\
-            .values(date=models.functions.TruncDate('created_at'))\
-            .annotate(**annotations)\
-            .values_list('date', *annotations.keys())\
-            .order_by('date')
+        qs = FilteredRequest.objects.all()\
+            .filter(created_at__gte=timezone.now() - timezone.timedelta(days=self_day))
         
-        end_date = timezone.now().date()
-        start_date = end_date - timezone.timedelta(days=self.days)
-        date_range = [start_date + timezone.timedelta(days=x) for x in range((end_date - start_date).days + 1)]
+        def _hour_data(requests):
+            requests = requests.values(date=models.functions.ExtractHour('created_at'))\
+                .annotate(**annotations)\
+                .values_list('date', *annotations.keys())\
+                .order_by('date')
 
-        labels = [date for date in date_range]
+            hour_end = timezone.now().hour
+            hour_start = hour_end - 24
+            labels = [_positive(hour + 1, 24) for hour in range(hour_start, hour_end)]
+            return labels, requests
+        
+        def _week_data(requests):
+            requests = requests.values(date=models.functions.ExtractIsoWeekDay('created_at'))\
+                .annotate(**annotations)\
+                .values_list('date', *annotations.keys())\
+                .order_by('date')
+
+            end_date = timezone.now().date().isoweekday()
+            start_date = end_date - 7
+            labels = [_positive(start_date + x + 1, 7, zero=1) for x in range(7)]
+            
+            return labels, requests
+
+        def _date_data(requests):
+            requests = requests.values(date=models.functions.TruncDate('created_at'))\
+                .annotate(**annotations)\
+                .values_list('date', *annotations.keys())\
+                .order_by('date')
+
+
+            end_date = timezone.now().date()
+            start_date = end_date - timezone.timedelta(days=self_day)
+            labels = [start_date + timezone.timedelta(days=x) for x in range((end_date - start_date).days + 1)]
+            return labels, requests
+        
+        def _month_data(requests):
+            requests = requests.annotate(date=models.functions.ExtractMonth('created_at'))\
+                               .values('date')\
+                               .annotate(**annotations)\
+                               .values_list('date', *annotations.keys())\
+                               .order_by('date')
+
+            end_date = timezone.now().date()
+            start_date = end_date - datetime.timedelta(days=self_day)
+
+            labels = []
+            for i in range(1, 13):
+                month = start_date.month + i
+                year = start_date.year
+                if month > 12:
+                    month -= 12
+                    year += 1
+                labels.append(month)
+
+            return labels, requests
+
         datasets = []
+
+        filter = request.GET.get('filter', 'day')
+        if filter == 'day':
+            labels, qs = _hour_data(qs)
+        elif filter == 'week':
+            labels, qs = _week_data(qs)
+        elif filter == 'month':
+            labels, qs = _date_data(qs)
+        elif filter == 'year':
+            labels, qs = _month_data(qs)
+
         for i, (action, _) in enumerate(FilterActionChoices.choices):
             dataset = {'label': action, 'data': []}
-            data_points = {request[0]: request[i + 1] for request in requests}
+            data_points = {request[0]: request[i + 1] for request in qs}
 
-            for date in date_range:
+            for point in labels:
                 dataset['data'].append({
-                    'x': date,
-                    'y': data_points.get(date, 0),
+                    'x': point,
+                    'y': data_points.get(point, 0),
                 })
 
             datasets.append(dataset)
@@ -122,7 +235,7 @@ class FilteredRequestChartView(WagtailAdminTemplateMixin, TemplateView):
         }
         return self.render_to_response(
             context=self.get_context_data(
-                chart = json.dumps(chart, cls=DjangoJSONEncoder),
+                chart = chart,
             ),
         )
 
