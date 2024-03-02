@@ -8,3 +8,26 @@
     margin-top: 2rem;
     min-height: 40vh;
 }
+.request-filters-row {
+    display: flex;
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: 1rem;
+}
+.request-filter-field-wrapper {
+    margin-bottom: 0.5rem;
+}
+.request-filters-row.wrapped {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+.request-filters-scrollable {
+    max-height: var(--height, 100px);
+    overflow-y: auto;
+    overflow-x: hidden;
+    direction:rtl; 
+}
+.request-filters-scrollable > * {
+    direction:ltr;
+    margin-left: 0.5rem;
+}

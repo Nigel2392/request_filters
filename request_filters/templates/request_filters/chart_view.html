@@ -17,7 +17,38 @@
     <div class="chart">
         <canvas id="filter-chart"></canvas>
     </div>
+    <form method="get">
 
+        <input type="hidden" name="query_by" value="{{ query_by }}">
+
+        <div class="request-filters-row">
+            <div class="request-filters-col">
+                {% include "./chart_view_form_field.html" with field=filter.form.method %}
+            </div>
+
+            <div class="request-filters-col">
+                {% include "./chart_view_form_field.html" with field=filter.form.filter %}
+            </div>
+
+            <div class="request-filters-col">
+                
+            </div>
+
+        </div>
+
+        <div class="request-filter-field-wrapper">
+            <div class="field-label">
+                {{ filter.form.filters.label_tag }}
+            </div>
+            <div class="field-input request-filters-scrollable" style="--height: 500px;">
+                {% for f in filter.form.filters %}
+                    {% include "./chart_view_form_field.html" with field=f %}
+                {% endfor %}
+            </div>
+        </div>
+
+        <input type="submit" class="button" value="{% translate "Filter" %}">
+    </form>
     {{ chart|json_script:"chart_data" }}
 {% endblock %}
         

@@ -1,11 +1,10 @@
 import datetime
-import json
 from typing import Any
+from django import forms
 from django.db import models
 from django.utils import timezone
 from django.urls import path, reverse
 from django.views.generic import TemplateView
-from django.core.serializers.json import DjangoJSONEncoder
 from django.utils.translation import gettext_lazy as _, gettext_lazy
 from django.http import HttpRequest, HttpResponse
 
@@ -15,7 +14,11 @@ from wagtail.admin.views.generic import WagtailAdminTemplateMixin
 from wagtail.admin.widgets.button import Button, ButtonWithDropdown, HeaderButton
 from wagtail import hooks
 
-from .models import FilteredRequest, FilterSettings, FilterActionChoices
+from django_filters.filterset import FilterSet
+from django_filters import filters
+
+from .checks import FilterChoices, FilterMethodChoices
+from .models import FilteredRequest, FilterSettings, Filter, FilterActionChoices
 from .options import RequestFilters
 
 class FilteredRequestViewSet(SnippetViewSet):
@@ -148,6 +151,59 @@ def _month_data(self_day, annotations, requests):
 
     return labels, requests, integer_to_month
 
+class RequestFiltersModelMultipleChoceField(filters.ModelMultipleChoiceField):
+    widget = forms.CheckboxSelectMultiple
+
+class RequestFilterModelMultipleChoiceFilter(filters.ModelMultipleChoiceFilter):
+    field_class = RequestFiltersModelMultipleChoceField
+
+class FilteredRequestFilterSet(FilterSet):
+    method = filters.ChoiceFilter(
+        choices=FilterMethodChoices.choices,
+        method='filter_method',
+        label=_('Method'),
+    )
+
+    filter = filters.ChoiceFilter(
+        choices=FilterChoices.choices,
+        method='filter_filter',
+        label=_('Filter Type'),
+    )
+
+    filters = RequestFilterModelMultipleChoiceFilter(
+        queryset=Filter.objects.all(),
+        method='filter_filters',
+        label=_('Filters'),
+    )
+
+    class Meta:
+        model = FilteredRequest
+        fields = [
+            'method',
+            'filter',
+            'filters',
+        ]
+
+    def filter_method(self, queryset, name, value):
+        if not value:
+            return queryset
+        return queryset.filter(_filter__method=value)
+    
+    def filter_filter(self, queryset, name, value):
+        if not value:
+            return queryset
+        return queryset.filter(_filter__filter_type=value)
+    
+    def filter_filters(self, queryset, name, value):
+        if not value:
+            return queryset
+        
+        values = [v.pk for v in value]
+        q = models.Q(_filter__pk=values[0])
+        for v in values[1:]:
+            q |= models.Q(_filter__pk=v)
+        return queryset.filter(q)
+
 class FilteredRequestChartView(WagtailAdminTemplateMixin, TemplateView):
     template_name = 'request_filters/chart_view.html'
     page_title = _('Filters Chart')
@@ -179,7 +235,7 @@ class FilteredRequestChartView(WagtailAdminTemplateMixin, TemplateView):
             buttons.append(
                 Button(
                     _(filter.capitalize()),
-                    url=reverse('filter_chart_view') + f"?filter={filter}",
+                    url=reverse('filter_chart_view') + f"?query_by={filter}",
                     priority=i,
                 )
             )
@@ -234,7 +290,7 @@ class FilteredRequestChartView(WagtailAdminTemplateMixin, TemplateView):
                 ),
             )
 
-        filter = request.GET.get('filter', 'day')
+        filter = request.GET.get('query_by', 'day')
         try:
             self_day = self.days[filter]
             filter_fn = self.filters[filter]
@@ -242,13 +298,16 @@ class FilteredRequestChartView(WagtailAdminTemplateMixin, TemplateView):
             self_day = self.days['day']
             filter_fn = self.filters['day']
 
+
         qs = FilteredRequest.objects.all()\
             .filter(created_at__gte=timezone.now() - timezone.timedelta(days=self_day))
 
-        labels, qs, fmt = filter_fn(self_day, annotations, qs)
+        dj_filter = FilteredRequestFilterSet(request.GET, queryset=qs, request=request)
+
+        labels, qs, fmt = filter_fn(self_day, annotations, dj_filter.qs)
 
         datasets = []
-        for i, (action, _) in enumerate(FilterActionChoices.choices):
+        for i, (_, action) in enumerate(FilterActionChoices.choices):
             dataset = {'label': action, 'data': []}
             data_points = {request[0]: request[i + 1] for request in qs}
 
@@ -269,6 +328,8 @@ class FilteredRequestChartView(WagtailAdminTemplateMixin, TemplateView):
         return self.render_to_response(
             context=self.get_context_data(
                 chart = chart,
+                query_by = filter,
+                filter = dj_filter,
             ),
         )
 
