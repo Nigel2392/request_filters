@@ -22,12 +22,13 @@
         <input type="hidden" name="query_by" value="{{ query_by }}">
 
         <div class="request-filters-row">
+            
             <div class="request-filters-col">
-                {% include "./chart_view_form_field.html" with field=filter.form.method %}
+                {% include "./chart_view_form_field.html" with field=filter.form.filter %}
             </div>
 
             <div class="request-filters-col">
-                {% include "./chart_view_form_field.html" with field=filter.form.filter %}
+                {% include "./chart_view_form_field.html" with field=filter.form.method %}
             </div>
 
             <div class="request-filters-col">

@@ -172,11 +172,12 @@ class FilteredRequest(models.Model):
 
     def get_list_description(self):
         if self._filter:
+            filter = Filter(**self._filter)
             if self.filter.action_value:
-                filter = Filter(**self._filter)
                 return f"{filter.get_action_display()} ({self.filter.action_value})"
+            return f"{filter.get_action_display()}"
 
-        return self.gis_data.get("country_name", self.request_language or self.request_ip)
+        return self.gis_data.get("country_name", self.request_language)
     get_list_description.short_description = _("Description")
 
     def get_match_performed(self):

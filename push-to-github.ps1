@@ -1,10 +1,14 @@
+param (
+    [string]$CommitMessage = "Update to package"
+)
+
+
 $ProjectName = "request_filters"
 
 
 Function GITHUB_Upload {
     param (
-        [string]$Version,
-        [string]$CommitMessage = "Update to package"
+        [string]$Version
     )
 
     git add .

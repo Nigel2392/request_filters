@@ -9,7 +9,7 @@ from django.utils.translation import gettext_lazy as _, gettext_lazy
 from django.http import HttpRequest, HttpResponse
 
 from wagtail.snippets.models import register_snippet
-from wagtail.snippets.views.snippets import SnippetViewSet
+from wagtail.snippets.views.snippets import SnippetViewSet, IndexView
 from wagtail.admin.views.generic import WagtailAdminTemplateMixin
 from wagtail.admin.widgets.button import Button, ButtonWithDropdown, HeaderButton
 from wagtail import hooks
@@ -20,6 +20,10 @@ from django_filters import filters
 from .checks import FilterChoices, FilterMethodChoices
 from .models import FilteredRequest, FilterSettings, Filter, FilterActionChoices
 from .options import RequestFilters
+
+class LogIndexView(IndexView):
+    def get_paginate_by(self, queryset):
+        return 50
 
 class FilteredRequestViewSet(SnippetViewSet):
     model = FilteredRequest
@@ -33,6 +37,8 @@ class FilteredRequestViewSet(SnippetViewSet):
     add_to_settings_menu = False
     url_prefix = 'request_filters/log'
     admin_url_namespace = 'request_filters_log'
+
+    index_view_class = LogIndexView
 
     list_display = (
         'get_list_title',
