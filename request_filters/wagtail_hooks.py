@@ -246,14 +246,10 @@ class FilteredRequestFilterSet(FilterSet):
         return queryset
     
     def filter_to_date(self, queryset, name, value):
-        if not value:
-            return queryset
-        return queryset.filter(created_at__lte=value)
+        return queryset
     
     def filter_from_date(self, queryset, name, value):
-        if not value:
-            return queryset
-        return queryset.filter(created_at__gte=value)
+        return queryset
 
     def filter_filters(self, queryset, name, value):
         if not value:
@@ -291,6 +287,7 @@ class FilteredRequestChartView(WagtailAdminTemplateMixin, TemplateView):
 
         query = self.request.GET.copy()
         query.pop('query_by', None)
+        query.pop('from_date', None)
 
         for i, filter in enumerate(filters):
             # data = self.request.GET.get('filter', None)
@@ -366,9 +363,12 @@ class FilteredRequestChartView(WagtailAdminTemplateMixin, TemplateView):
         to_date = getattr(dj_filter.form, "cleaned_data", {}).get("to_date")
         from_date = getattr(dj_filter.form, "cleaned_data", {}).get("from_date")
 
+        if from_date and not to_date:
+            to_date = timezone.now()
+
         if from_date and to_date:
             delta_from_to = to_date - from_date
-            if delta_from_to.days > 365:
+            if delta_from_to.days > 93:
                 delta = "year"
             elif delta_from_to.days >= 30:
                 delta = "month"
@@ -379,17 +379,21 @@ class FilteredRequestChartView(WagtailAdminTemplateMixin, TemplateView):
             elif delta_from_to.days <= 1:
                 delta = "day"
             filter_fn = self.filters[delta]
-        else:
+        else:            
             try: 
                 filter_fn = self.filters[filter]
             except KeyError: 
                 filter = "day"
                 filter_fn = self.filters['day']
             
-            if to_date is None or from_date is None:
+            if to_date and not from_date:
+                from_date = to_date - timezone.timedelta(days=self.days[filter])
+
+            elif not to_date and not from_date:
                 to_date = timezone.now()
                 from_date = to_date - timezone.timedelta(days=self.days[filter])
         
+        qs = qs.filter(created_at__gte=from_date, created_at__lte=to_date)
 
         labels, qs, fmt = filter_fn(annotations, qs, from_date, to_date)
 
