@@ -228,6 +228,8 @@ class FilteredRequest(models.Model):
     def log_request(cls, request: HttpRequest, filter: "Filter", response: HttpResponse = None, fail_silently: bool = False, filter_index = None, commit: bool = True):
         """
             Log a request that has been filtered
+            if commit is False, returns a dictionary of kwargs to be used to create a FilteredRequest instance.
+            If commit is True, the FilteredRequest instance will be created and saved to the database; the instance will be returned.
         """
 
         if not cls.should_log(request):
@@ -241,8 +243,8 @@ class FilteredRequest(models.Model):
         ip = get_ip_address(request)
         if not ip:
             log(f"({cls.__name__}) Could not get the IP address from the request ([{request.method}] - {request.path}).", level=logging.ERROR)
-            if fail_silently: return
-            raise LogFailed(f"Could not get the IP address from the request.")
+            if not fail_silently:
+                raise LogFailed(f"Could not get the IP address from the request.")
 
         ipaddr = ipaddress.ip_address(ip)
         country = {}
@@ -267,8 +269,8 @@ class FilteredRequest(models.Model):
             if not filter.pk:
                 err = f"Filter {filter} has not been saved for ([{ip}/{request.method}] - {request.path}])."
                 log(f"({cls.__name__}) {err}", level=logging.ERROR)
-                if fail_silently: return
-                raise LogFailed(err)
+                if not fail_silently:
+                    raise LogFailed(err)
 
             _create_kwargs["_filter"] = {
                 "pk":           filter.pk,
@@ -290,20 +292,20 @@ class FilteredRequest(models.Model):
         if django_settings.USE_I18N:
             _create_kwargs["request_language"] = get_language_from_request(request)
 
-        self = cls(
-            filter_index        = filter_index,
-            gis_data            = country,
-            request_ip          = ip,
-            request_path        = request.path,
-            request_method      = request.method,
-            request_is_secure   = request.is_secure(),
-            request_info        = data,
-            **_create_kwargs,
-        )
+        _create_kwargs.update({
+            "filter_index":     filter_index,
+            "request_ip":       ip,
+            "request_path":     request.path,
+            "request_method":   request.method,
+            "request_is_secure": request.is_secure(),
+            "request_info":     data,
+            "gis_data":         country,
+        })
 
         if commit:
+            self = cls(**_create_kwargs)
             log(f"({cls.__name__}) Logging filtered request {self} with {filter} ([{ip}/{request.method}] - {request.path}).", level=logging.DEBUG)
             self.save()
 
-        return self
+        return _create_kwargs
     

@@ -25,6 +25,12 @@ FilterSettingsModel: "FilterSettings" = apps.get_model(
     require_ready=False,
 )
 
+def bulk_create_filtered_requests(requests: list[dict]):
+    """
+        Create FilteredRequest instances in bulk.
+    """
+    requests = filter(None, requests)
+    FilteredRequest.objects.bulk_create([FilteredRequest(**kwgs) for kwgs in requests])
 
 class RequestFilterMiddleware:
     def __init__(self, get_response):
@@ -85,6 +91,10 @@ class RequestFilterMiddleware:
         # Filter.passes_test checks if the request fits the 'shape' of the filter.
         # For example, if the type is IP, it checks if the request IP is in the filter.filter_value's CIDR range.
         # It returns true if the value is a match and thus should be filtered.
+        # log_request(commit=False) returns a dictionary of kwargs to be used to create a FilteredRequest instance.
+        # If commit is True, the FilteredRequest instance will be created and saved to the database; the instance will be returned.
+        # This means we must manually create the FilteredRequest instances in bulk at the end of the function (when returning, raising etc...)
+        requests = []
         for idx, filter in enumerate(filters):
             if filter.passes_test(settings, request):
                 
@@ -94,16 +104,21 @@ class RequestFilterMiddleware:
 
                 # Log then re-raise PermissionDenied
                 except PermissionDenied as e:
-                    FilteredRequest.log_request(request, filter=filter, filter_index=idx, fail_silently=True)
+                    kwgs = FilteredRequest.log_request(request, filter=filter, filter_index=idx, fail_silently=True, commit=False)
+                    if kwgs:
+                        requests.append(kwgs)
+                    bulk_create_filtered_requests(requests)
                     raise e
                 
                 # Log the request/response.
                 else:
                     # Filters may return none to allow for the next filter to be executed.
-                    if response is None:
-                        FilteredRequest.log_request(request, filter=filter, filter_index=idx, fail_silently=True)
-                    else:
-                        FilteredRequest.log_request(request, filter=filter, response=response, filter_index=idx, fail_silently=True)
+                    kwgs = FilteredRequest.log_request(request, filter=filter, response=response, filter_index=idx, fail_silently=True, commit=False)
+                    if kwgs:
+                        requests.append(kwgs)
+                        
+                    if response is not None:
+                        bulk_create_filtered_requests(requests)
                         return response, False
                 
         # No filters matched
@@ -111,7 +126,11 @@ class RequestFilterMiddleware:
 
         if RequestFilters.LOG_HAPPY_PATH:
             skip_logging(request, False)
-            FilteredRequest.log_request(request, filter=None, response=response, fail_silently=True)
+            kwgs = FilteredRequest.log_request(request, filter=None, response=response, fail_silently=True, commit=False)
+            if kwgs:
+                requests.append(kwgs)
+
+        bulk_create_filtered_requests(requests)
 
         return response, True
     
