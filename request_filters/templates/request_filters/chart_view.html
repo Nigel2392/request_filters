@@ -11,7 +11,15 @@
     {{ block.super }}
     <script src="{% static "request_filters/admin/chart.js" %}"></script>
     <script src="{% static "request_filters/admin/chart_view.js" %}"></script>
+    <script src="{% static "wagtailadmin/js/date-time-chooser.js" %}"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            initDateTimeChooser("id_to_date", {"dayOfWeekStart": 1, "format": "Y-m-d H:i", "formatTime": "H:i", "parentID": "body"});
+            initDateTimeChooser("id_from_date", {"dayOfWeekStart": 1, "format": "Y-m-d H:i", "formatTime": "H:i", "parentID": "body"});
+        });
+    </script>
 {% endblock %}
+
 
 {% block main_content %}
     <div class="chart">
@@ -20,6 +28,19 @@
     <form method="get">
 
         <input type="hidden" name="query_by" value="{{ query_by }}">
+
+        {% if filter.form.errors or filter.form.non_field_errors %}
+            <div class="error-message">
+                {% if filter.form.non_field_errors %}
+                    {{ filter.form.non_field_errors }}
+                {% endif %}
+                {% for field in filter.form %}
+                    {% if field.errors %}
+                        {{ field.errors }}
+                    {% endif %}
+                {% endfor %}
+            </div>
+        {% endif %}
 
         <div class="request-filters-row">
             
@@ -33,6 +54,17 @@
 
             <div class="request-filters-col">
                 {% include "./chart_view_form_field.html" with field=filter.form.chart_type %}
+            </div>
+
+        </div>
+        <div class="request-filters-row">
+            
+            <div class="request-filters-col">
+                {% include "./chart_view_form_field.html" with field=filter.form.from_date %}
+            </div>
+
+            <div class="request-filters-col">
+                {% include "./chart_view_form_field.html" with field=filter.form.to_date %}
             </div>
 
         </div>

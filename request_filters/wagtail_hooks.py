@@ -1,4 +1,3 @@
-import datetime
 from typing import Any
 from django import forms
 from django.db import models
@@ -66,8 +65,6 @@ class URL(object):
     def __getitem__(self, key):
         return getattr(self, key)
 
-def _positive(number: int, add: int = 24, zero: int = 0) -> int:
-    return number if number >= zero else add + number
 
 weekdays = {
     1: gettext_lazy("Monday"),
@@ -94,68 +91,85 @@ months = {
     12: gettext_lazy("December"),
 }
 
-def day_to_weekday(request, point):
-    return weekdays[point]
 
-def integer_to_month(request, point):
-    return months[point]
+def day_to_weekday(point):
+    return weekdays[point.isoweekday()]
 
-def _hour_data(self_day, annotations, requests):
-    requests = requests.values(date=models.functions.ExtractHour('created_at'))\
+
+def integer_to_month(point):
+    return months[point.month]
+
+
+def _hour_data(annotations, qs, from_date: timezone.datetime, to_date: timezone.datetime):
+    qs = qs.values(date=models.functions.TruncHour("created_at"))\
         .annotate(**annotations)\
         .values_list('date', *annotations.keys())\
         .order_by('date')
-
-    hour_end = timezone.now().hour
-    hour_start = hour_end - 24
-    # Needs to be hour + 1 to avoid inaccurate data
-    labels = [_positive(hour + 1, 24) for hour in range(hour_start + 1, hour_end + 1)]
-    return labels, requests, lambda request, point: f"{point}:00"
-
-def _week_data(self_day, annotations, requests):
-    requests = requests.values(date=models.functions.ExtractIsoWeekDay('created_at'))\
-        .annotate(**annotations)\
-        .values_list('date', *annotations.keys())\
-        .order_by('date')
-
-    end_date = timezone.now().date().isoweekday()
-    start_date = end_date - 7
-    labels = [_positive(start_date + x, 7, zero=1) for x in range(1, 8)]
     
-    return labels, requests, day_to_weekday,
+    hour_start = from_date.replace(minute=0, second=0, microsecond=0)
+    hour_end = to_date.replace(minute=0, second=0, microsecond=0)
 
-def _date_data(self_day, annotations, requests):
-    requests = requests.values(date=models.functions.TruncDate('created_at'))\
+    labels = []
+    while hour_start <= hour_end:
+        labels.append(hour_start)
+        hour_start = hour_start + timezone.timedelta(hours=1)
+
+    return labels, qs, lambda point: point.strftime("%H:%M")
+
+
+def _week_data(annotations, qs, from_date: timezone.datetime, to_date: timezone.datetime):
+    qs = qs.values(date=models.functions.TruncDate("created_at"))\
         .annotate(**annotations)\
         .values_list('date', *annotations.keys())\
         .order_by('date')
 
+    from_date = from_date.date()
+    to_date = to_date.date()
 
-    end_date = timezone.now().date()
-    start_date = end_date - timezone.timedelta(days=self_day)
-    labels = [start_date + timezone.timedelta(days=x) for x in range((end_date - start_date).days + 1)]
-    return labels, requests, lambda request, point: point.strftime("%d-%m-%Y")
+    labels = []
+    while from_date <= to_date:
+        labels.append(from_date)
+        from_date = from_date + timezone.timedelta(days=1)
 
-def _month_data(self_day, annotations, requests):
-    requests = requests.annotate(date=models.functions.ExtractMonth('created_at'))\
+    return labels, qs, day_to_weekday
+
+
+def _date_data(annotations, qs, from_date: timezone.datetime, to_date: timezone.datetime):
+    qs = qs.values(date=models.functions.TruncDate("created_at"))\
+        .annotate(**annotations)\
+        .values_list('date', *annotations.keys())\
+        .order_by('date')
+    
+    from_date = from_date.date()
+    to_date = to_date.date()
+
+    labels = []
+    while from_date <= to_date:
+        labels.append(from_date)
+        from_date = from_date + timezone.timedelta(days=1)
+
+    return labels, qs, lambda point: point.strftime("%d-%m-%Y")
+
+
+def _month_data(annotations, qs, from_date: timezone.datetime, to_date: timezone.datetime):
+    qs = qs.annotate(date=models.functions.TruncMonth("created_at", output_field=models.DateField()))\
                        .values('date')\
                        .annotate(**annotations)\
                        .values_list('date', *annotations.keys())\
                        .order_by('date')
 
-    end_date = timezone.now().date()
-    start_date = end_date - datetime.timedelta(days=self_day)
+    start_date = from_date.date().replace(day=1)
+    end_date = to_date.date().replace(day=1)
 
     labels = []
-    for i in range(1, 13):
-        month = start_date.month + i
-        year = start_date.year
-        if month > 12:
-            month -= 12
-            year += 1
-        labels.append(month)
-
-    return labels, requests, integer_to_month
+    while start_date <= end_date:
+        labels.append(start_date)
+        if start_date.month == 12:
+            start_date = start_date.replace(year=start_date.year + 1, month=1)
+        else:
+            start_date = start_date.replace(month=start_date.month + 1)
+        
+    return labels, qs, lambda point: point.strftime("%m-%Y")
 
 class RequestFiltersModelMultipleChoceField(filters.ModelMultipleChoiceField):
     widget = forms.CheckboxSelectMultiple
@@ -185,6 +199,18 @@ class FilteredRequestFilterSet(FilterSet):
         empty_label=None,
         initial='line',
         method='filter_chart_type',
+    )
+
+    from_date = filters.DateTimeFilter(
+        field_name='created_at',
+        label=_('From Date'),
+        method='filter_from_date',
+    )
+
+    to_date = filters.DateTimeFilter(
+        field_name='created_at',
+        label=_('To Date'),
+        method='filter_to_date',
     )
 
     filters = RequestFilterModelMultipleChoiceFilter(
@@ -218,6 +244,16 @@ class FilteredRequestFilterSet(FilterSet):
         
     def filter_chart_type(self, queryset, name, value):
         return queryset
+    
+    def filter_to_date(self, queryset, name, value):
+        if not value:
+            return queryset
+        return queryset.filter(created_at__lte=value)
+    
+    def filter_from_date(self, queryset, name, value):
+        if not value:
+            return queryset
+        return queryset.filter(created_at__gte=value)
 
     def filter_filters(self, queryset, name, value):
         if not value:
@@ -324,20 +360,38 @@ class FilteredRequestChartView(WagtailAdminTemplateMixin, TemplateView):
             )
 
         filter = request.GET.get('query_by', 'day')
-        try:
-            self_day = self.days[filter]
-            filter_fn = self.filters[filter]
-        except KeyError:
-            self_day = self.days['day']
-            filter_fn = self.filters['day']
+        dj_filter = FilteredRequestFilterSet(request.GET, queryset=FilteredRequest.objects.all(), request=request)
+        qs = dj_filter.qs
 
+        to_date = getattr(dj_filter.form, "cleaned_data", {}).get("to_date")
+        from_date = getattr(dj_filter.form, "cleaned_data", {}).get("from_date")
 
-        qs = FilteredRequest.objects.all()\
-            .filter(created_at__gte=timezone.now() - timezone.timedelta(days=self_day))
+        if from_date and to_date:
+            delta_from_to = to_date - from_date
+            if delta_from_to.days > 365:
+                delta = "year"
+            elif delta_from_to.days >= 30:
+                delta = "month"
+            elif delta_from_to.days > 7:
+                delta = "month"
+            elif delta_from_to.days > 1:
+                delta = "week"
+            elif delta_from_to.days <= 1:
+                delta = "day"
+            filter_fn = self.filters[delta]
+        else:
+            try: 
+                filter_fn = self.filters[filter]
+            except KeyError: 
+                filter = "day"
+                filter_fn = self.filters['day']
+            
+            if to_date is None or from_date is None:
+                to_date = timezone.now()
+                from_date = to_date - timezone.timedelta(days=self.days[filter])
+        
 
-        dj_filter = FilteredRequestFilterSet(request.GET, queryset=qs, request=request)
-
-        labels, qs, fmt = filter_fn(self_day, annotations, dj_filter.qs)
+        labels, qs, fmt = filter_fn(annotations, qs, from_date, to_date)
 
         datasets = []
         for i, (_, action) in enumerate(FilterActionChoices.choices):
@@ -346,13 +400,13 @@ class FilteredRequestChartView(WagtailAdminTemplateMixin, TemplateView):
 
             for point in labels:
                 dataset['data'].append({
-                    'x': fmt(request, point),
+                    'x': fmt(point),
                     'y': data_points.get(point, 0),
                 })
 
             datasets.append(dataset)
 
-        labels = [fmt(request, point) for point in labels]
+        labels = [fmt(point) for point in labels]
 
         chart = {
             "datasets": datasets,
@@ -366,7 +420,19 @@ class FilteredRequestChartView(WagtailAdminTemplateMixin, TemplateView):
                 chart_type = dj_filter.form.cleaned_data.get('chart_type', 'line'),
             ),
         )
-
+    
+    def filter_by_allow(self, value):
+        return models.Q(_filter__action=value)
+    
+    def filter_by_block(self, value):
+        return models.Q(_filter__action=value)
+    
+    def filter_by_redirect(self, value):
+        return models.Q(_filter__action=value)
+    
+    def filter_by_log(self, value):
+        return models.Q(_filter__action=value)
+    
 
 @hooks.register("register_admin_urls")
 def register_admin_urls():

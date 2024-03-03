@@ -25,6 +25,8 @@ from .. import log
 from wagtail.admin.panels import (
     FieldPanel,
     FieldRowPanel,
+    ObjectList,
+    TabbedInterface,
 )
 
 
@@ -107,21 +109,35 @@ class FilteredRequest(models.Model):
         verbose_name=_("Created At"),
     )
 
-    panels = [
+    main_panels = [
         FieldRowPanel([
             FieldPanel("request_method", read_only=True),
             FieldPanel("request_path", read_only=True),
         ]),
         FieldPanel("request_ip", read_only=True),
+        FieldPanel("created_at", read_only=True),
+        FieldPanel("gis_data", read_only=True),
+    ]
+
+    req_resp_panels = [
         FieldRowPanel([
             FieldPanel("request_language", read_only=True),
             FieldPanel("request_is_secure", read_only=True),
         ]),
-        FieldPanel("gis_data", read_only=True),
-        FieldPanel("created_at", read_only=True),
         FieldPanel("response_info", read_only=True),
         FieldPanel("request_info", read_only=True),
     ]
+
+    filter_panels = [
+        FieldPanel("filter_index", read_only=True),
+        FieldPanel("_filter", read_only=True),
+    ]
+
+    edit_handler = TabbedInterface([
+        ObjectList(main_panels, heading=_("Main")),
+        ObjectList(req_resp_panels, heading=_("Request/Response")),
+        ObjectList(filter_panels, heading=_("Filter")),
+    ])
 
     class Meta:
         verbose_name = _("Filtered Request")
