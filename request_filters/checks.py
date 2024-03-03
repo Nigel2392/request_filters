@@ -29,6 +29,7 @@ class FilterChoices(models.TextChoices):
     REFERER         = "REFERER",        _("Referer")
     COUNTRY         = "COUNTRY",        _("Country")
     METHOD          = "METHOD",         _("Method")
+    HEADER          = "HEADER",         _("Header")
 
 class FilterMethodChoices(models.TextChoices):
     ABSOLUTE = "ABSOLUTE",  _("Absolute")
@@ -78,6 +79,9 @@ def ABSOLUTE_FILTER_CHECK_COUNTRY(filter: "Filter", settings: "FilterSettings", 
     name = country.get("country_name", "")
 
     return filter.filter_value in (code, name)
+
+def ABSOLUTE_FILTER_CHECK_HEADER(filter: "Filter", settings: "FilterSettings", request: HttpRequest):
+    return filter.action_value == request.META.get(filter.filter_value, "")
 
 def ABSOLUTE_FILTER_CHECK_METHOD(filter: "Filter", settings: "FilterSettings", request: HttpRequest):
     return filter.filter_value == request.method
@@ -137,6 +141,9 @@ def CHECK_GET_QUERY_STRING(filter: "Filter", settings: "FilterSettings", request
 
 def CHECK_GET_REFERER(filter: "Filter", settings: "FilterSettings", request: HttpRequest):
     return request.META.get("HTTP_REFERER", "")
+
+def CHECK_GET_HEADER(filter: "Filter", settings: "FilterSettings", request: HttpRequest):
+    return request.META.get(filter.action_value, "")
 
 def CHECK_GET_COUNTRY(filter: "Filter", settings: "FilterSettings", request: HttpRequest):
     ip = get_ip_address(request)
@@ -213,6 +220,7 @@ FILTER_CHECKS_ABSOLUTE = {
     FilterChoices.REFERER:         ABSOLUTE_FILTER_CHECK_REFERER,
     FilterChoices.COUNTRY:         ABSOLUTE_FILTER_CHECK_COUNTRY,
     FilterChoices.METHOD:          ABSOLUTE_FILTER_CHECK_METHOD,
+    FilterChoices.HEADER:          ABSOLUTE_FILTER_CHECK_HEADER,
 }
 
 FILTER_CHECKS_RE = {
@@ -223,6 +231,7 @@ FILTER_CHECKS_RE = {
     FilterChoices.REFERER:         RE_MATCH_CHECK(CHECK_GET_REFERER),
     FilterChoices.COUNTRY:         RE_MATCH_CHECK(CHECK_GET_COUNTRY),
     FilterChoices.METHOD:          RE_MATCH_CHECK(CHECK_GET_METHOD),
+    FilterChoices.HEADER:          RE_MATCH_CHECK(CHECK_GET_HEADER),
 }
 
 
@@ -234,6 +243,7 @@ FILTER_CHECKS_WC = {
     FilterChoices.REFERER:         WC_MATCH_CHECK(CHECK_GET_REFERER),
     FilterChoices.COUNTRY:         WC_MATCH_CHECK(CHECK_GET_COUNTRY),
     FilterChoices.METHOD:          WC_MATCH_CHECK(CHECK_GET_METHOD),
+    FilterChoices.HEADER:          WC_MATCH_CHECK(CHECK_GET_HEADER),
 }
 
 FILTER_CHECKS_IN = {
@@ -244,6 +254,7 @@ FILTER_CHECKS_IN = {
     FilterChoices.REFERER:         IN_MATCH_CHECK(CHECK_GET_REFERER, split_by = None),
     FilterChoices.COUNTRY:         IN_FILTER_CHECK_COUNTRY,
     FilterChoices.METHOD:          IN_MATCH_CHECK(CHECK_GET_METHOD, _p_upper, split_by = " "),
+    FilterChoices.HEADER:          IN_MATCH_CHECK(CHECK_GET_HEADER, split_by = None),
 }
 
 FILTER_CHECKS = {

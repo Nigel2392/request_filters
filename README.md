@@ -14,6 +14,7 @@ Only for use in wagtail projects - might support django-only in the future.
 * REFERER
 * COUNTRY
 * METHOD
+* HEADER
 
 ## Matching based on:
 
@@ -42,8 +43,8 @@ Has a a view to easy analyse the behaviour of filters overall in a chart.
 
    ```
    MIDDLEWARE = [
-   ...,
-   'request_filters.middleware.RequestFilterMiddleware',
+   	'request_filters.middleware.RequestFilterMiddleware',
+   	...,
    ]
    ```
 3. See the [options](#Options) section for more information on how to configure the app.

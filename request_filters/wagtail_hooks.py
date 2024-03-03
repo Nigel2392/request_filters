@@ -1,4 +1,3 @@
-from pydoc import classname
 from typing import Any
 from django import forms
 from django.db import models
@@ -392,6 +391,9 @@ class FilteredRequestChartView(WagtailAdminTemplateMixin, TemplateView):
         from_date = getattr(dj_filter.form, "cleaned_data", {}).get("from_date")
 
         if from_date and not to_date:
+            to_date = timezone.now()
+
+        if to_date and to_date > timezone.now():
             to_date = timezone.now()
 
         if from_date and to_date:

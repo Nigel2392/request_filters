@@ -14,7 +14,7 @@ log.WARN = _logging.WARN
 log.ERROR = _logging.ERROR
 log.CRITICAL = _logging.CRITICAL
 
-__version__ = '1.4.4'
+__version__ = '1.4.5'
 VERSION = tuple(__version__.split("."))
 
 
