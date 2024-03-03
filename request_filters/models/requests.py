@@ -143,7 +143,9 @@ class FilteredRequest(models.Model):
         verbose_name = _("Filtered Request")
         verbose_name_plural = _("Filtered Requests")
         ordering = ["-created_at__date", "-created_at__time__hour", "-created_at__time__minute", "-created_at__time__second", "filter_index"]
-
+        permissions = (
+            ("see_chart", _("View Chart")),
+        )
 
     def __str__(self):
 

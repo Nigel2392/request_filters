@@ -1,3 +1,4 @@
+from pydoc import classname
 from typing import Any
 from django import forms
 from django.db import models
@@ -5,6 +6,7 @@ from django.utils import timezone
 from django.urls import path, reverse
 from django.views.generic import TemplateView
 from django.utils.translation import gettext_lazy as _, gettext_lazy
+from django.contrib.auth.models import Permission
 from django.http import HttpRequest, HttpResponse
 
 from wagtail.snippets.models import register_snippet
@@ -23,6 +25,32 @@ from .options import RequestFilters
 class LogIndexView(IndexView):
     def get_paginate_by(self, queryset):
         return 50
+    
+    def get_header_buttons(self):
+        buttons = super().get_header_buttons()
+        if self.request.user.has_perms([
+                f"{FilteredRequest._meta.app_label}.see_chart",
+            ]):
+            buttons.insert(0, HeaderButton(
+                _('Analyse'),
+                icon_name='history',
+                url=reverse('filter_chart_view'),
+                priority=0,
+            ))
+        return buttons
+    
+    def get_breadcrumbs_items(self):
+        breadcrumbs = super().get_breadcrumbs_items()
+        if self.request.user.has_perms([
+                    f"{FilterSettings._meta.app_label}.change_{FilterSettings._meta.model_name}",
+                ]):
+            return [
+                breadcrumbs[0],
+                URL("wagtailsettings:edit", _("Settings"), {"app_name": FilterSettings._meta.app_label, "model_name": FilterSettings._meta.model_name}),
+                breadcrumbs[-1],
+            ]
+        
+        return breadcrumbs
 
 class FilteredRequestViewSet(SnippetViewSet):
     model = FilteredRequest
@@ -316,8 +344,8 @@ class FilteredRequestChartView(WagtailAdminTemplateMixin, TemplateView):
         ]
 
         if self.request.user.has_perms([
-                    f"{FilteredRequest._meta.app_label}.change_{FilteredRequest._meta.model_name}"
-                ]):
+                f"{FilteredRequest._meta.app_label}.view_{FilteredRequest._meta.model_name}"
+            ]):
             ret_buttons.append(
                 HeaderButton(
                     _('Logs'),
@@ -386,11 +414,10 @@ class FilteredRequestChartView(WagtailAdminTemplateMixin, TemplateView):
                 filter = "day"
                 filter_fn = self.filters['day']
             
-            if to_date and not from_date:
-                from_date = to_date - timezone.timedelta(days=self.days[filter])
-
-            elif not to_date and not from_date:
+            if not to_date:
                 to_date = timezone.now()
+            
+            if not from_date:
                 from_date = to_date - timezone.timedelta(days=self.days[filter])
         
         qs = qs.filter(created_at__gte=from_date, created_at__lte=to_date)
@@ -424,19 +451,7 @@ class FilteredRequestChartView(WagtailAdminTemplateMixin, TemplateView):
                 chart_type = dj_filter.form.cleaned_data.get('chart_type', 'line'),
             ),
         )
-    
-    def filter_by_allow(self, value):
-        return models.Q(_filter__action=value)
-    
-    def filter_by_block(self, value):
-        return models.Q(_filter__action=value)
-    
-    def filter_by_redirect(self, value):
-        return models.Q(_filter__action=value)
-    
-    def filter_by_log(self, value):
-        return models.Q(_filter__action=value)
-    
+
 
 @hooks.register("register_admin_urls")
 def register_admin_urls():
@@ -502,3 +517,12 @@ def register_icons(icons):
 def construct_settings_menu(request, items):
     items[:] = [item for item in items if item.name != "request_filters_settings_disabled"]
     return items
+
+@hooks.register('register_permissions')
+def register_permissions():
+    return Permission.objects.filter(
+        content_type__app_label=FilteredRequest._meta.app_label,
+        codename__in=[
+            "see_chart",
+        ]
+    )
