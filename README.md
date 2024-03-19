@@ -52,6 +52,12 @@ Has a a view to easy analyse the behaviour of filters overall in a chart.
 
 # Options
 
+#### GeoIP2
+
+You must appropriately configure django geoip2.
+
+More information on how this can be done is found [here.](https://docs.djangoproject.com/en/5.0/ref/contrib/gis/geoip2/)
+
 #### EXCLUDED_APPS
 
 List of excluded apps, all requests to these apps will be allowed (If resolver_match is available).
